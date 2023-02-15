@@ -25,6 +25,8 @@ CustomAmplifyDistributionStack(
     web_acl_arn=app.node.try_get_context("web_acl_arn"),
     app_id=app.node.try_get_context("app_id"),
     branch_name=app.node.try_get_context("branch_name"),
+    username=app.node.try_get_context("username"),
+    password=app.node.try_get_context("password"),
 )
 
 Aspects.of(app).add(AwsSolutionsChecks())
