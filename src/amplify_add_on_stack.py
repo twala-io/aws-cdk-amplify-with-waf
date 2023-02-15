@@ -1,13 +1,13 @@
 import os
 from urllib.parse import quote
 
+import base64
 import aws_cdk.aws_cloudfront as cloudfront
 import aws_cdk.aws_cloudfront_origins as origins
 from aws_cdk import Aws, CfnOutput, CustomResource, Duration, Stack
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam as iam
-from aws_cdk import aws_secretsmanager as secrets
 from aws_cdk import custom_resources as custom
 from aws_cdk.aws_lambda import Code, Function, Runtime, Tracing
 from aws_cdk.aws_logs import RetentionDays
@@ -25,27 +25,29 @@ class CustomAmplifyDistributionStack(Stack):
         web_acl_arn: str,
         app_id: str,
         branch_name: str,
+        username: str,
+        password: str,
         **kwargs,
     ):
         super().__init__(scope, id, **kwargs)
 
-        amplify_username = secrets.Secret(
-            self,
-            "rAmplifyUsername",
-            description=f"Username created for Amplify app with id {app_id}",
-            generate_secret_string=secrets.SecretStringGenerator(
-                password_length=12, exclude_punctuation=True
-            ),
-        )
+#         amplify_username = secrets.Secret(
+#             self,
+#             "rAmplifyUsername",
+#             description=f"Username created for Amplify app with id {app_id}",
+#             generate_secret_string=secrets.SecretStringGenerator(
+#                 password_length=12, exclude_punctuation=True
+#             ),
+#         )
 
-        amplify_password = secrets.Secret(
-            self,
-            "rAmplifyPassword",
-            description=f"Password created for Amplify app with id {app_id}",
-            generate_secret_string=secrets.SecretStringGenerator(
-                password_length=32, exclude_characters=":"
-            ),
-        )
+#         amplify_password = secrets.Secret(
+#             self,
+#             "rAmplifyPassword",
+#             description=f"Password created for Amplify app with id {app_id}",
+#             generate_secret_string=secrets.SecretStringGenerator(
+#                 password_length=32, exclude_characters=":"
+#             ),
+#         )
 
         # Lambda Baic Execution Permissions
         lambda_exec_policy = iam.ManagedPolicy.from_managed_policy_arn(
@@ -55,53 +57,56 @@ class CustomAmplifyDistributionStack(Stack):
         )
 
         # Amplify Credential Retrieval Lambda Execution Role
-        amplify_credentials_retrieval_function_role = iam.Role(
-            self,
-            "rAmplifyCredentialsRetrievalFunctionRole",
-            description="Role used by amplify_credentials_retrieval_function lambda function",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-        )
+#         amplify_credentials_retrieval_function_role = iam.Role(
+#             self,
+#             "rAmplifyCredentialsRetrievalFunctionRole",
+#             description="Role used by amplify_credentials_retrieval_function lambda function",
+#             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+#         )
 
-        amplify_credentials_retrieval_function_role.add_managed_policy(
-            lambda_exec_policy
-        )
+#         amplify_credentials_retrieval_function_role.add_managed_policy(
+#             lambda_exec_policy
+#         )
 
-        amplify_password.grant_read(amplify_credentials_retrieval_function_role)
-        amplify_username.grant_read(amplify_credentials_retrieval_function_role)
+#         amplify_password.grant_read(amplify_credentials_retrieval_function_role)
+#         amplify_username.grant_read(amplify_credentials_retrieval_function_role)
 
         # Function to retrieve base64 encoded authorisation string
-        amplify_credentials_retrieval_function = Function(
-            self,
-            "rAmplifyCredentialsRetrievalFunction",
-            description="custom function to retrieve value of scecrets that contain amplify auth info",  # noqa 501
-            runtime=Runtime.PYTHON_3_9,
-            handler="lambda_function.lambda_handler",
-            code=Code.from_asset(
-                path=os.path.join(dirname, "functions/password_retrieval")
-            ),
-            timeout=Duration.seconds(30),
-            memory_size=128,
-            role=amplify_credentials_retrieval_function_role,
-            tracing=Tracing.ACTIVE,
-            log_retention=RetentionDays.SIX_MONTHS,
-            environment={
-                "USERNAME_SECRET_ARN": amplify_username.secret_full_arn,
-                "CREDENTIALS_SECRET_ARN": amplify_password.secret_full_arn,
-            },
-        )
+#         amplify_credentials_retrieval_function = Function(
+#             self,
+#             "rAmplifyCredentialsRetrievalFunction",
+#             description="custom function to retrieve value of scecrets that contain amplify auth info",  # noqa 501
+#             runtime=Runtime.PYTHON_3_9,
+#             handler="lambda_function.lambda_handler",
+#             code=Code.from_asset(
+#                 path=os.path.join(dirname, "functions/password_retrieval")
+#             ),
+#             timeout=Duration.seconds(30),
+#             memory_size=128,
+#             role=amplify_credentials_retrieval_function_role,
+#             tracing=Tracing.ACTIVE,
+#             log_retention=RetentionDays.SIX_MONTHS,
+#             environment={
+#                 "USERNAME_SECRET_ARN": amplify_username.secret_full_arn,
+#                 "CREDENTIALS_SECRET_ARN": amplify_password.secret_full_arn,
+#             },
+#         )
 
-        password_provider = custom.Provider(
-            self,
-            "rPasswordProvider",
-            on_event_handler=amplify_credentials_retrieval_function,
-        )
+#         password_provider = custom.Provider(
+#             self,
+#             "rPasswordProvider",
+#             on_event_handler=amplify_credentials_retrieval_function,
+#         )
 
-        amplify_auth_value = CustomResource(
-            self,
-            "rPasswordRequestResource",
-            service_token=password_provider.service_token,
-            properties={},
-        )
+#         amplify_auth_value = CustomResource(
+#             self,
+#             "rPasswordRequestResource",
+#             service_token=password_provider.service_token,
+#             properties={},
+#         )
+
+        amplify_auth = username + ":" + password
+        amplify_auth_credentials = amplify_auth.encode("ascii")
 
         app_branch_update = custom.AwsCustomResource(
             self,
@@ -118,9 +123,7 @@ class CustomAmplifyDistributionStack(Stack):
                     "appId": app_id,
                     "branchName": branch_name,
                     "enableBasicAuth": True,
-                    "basicAuthCredentials": amplify_auth_value.get_att_string(
-                        "EncodedCredentials"
-                    ),
+                    "basicAuthCredentials": amplify_auth_credentials,
                 },
                 physical_resource_id=custom.PhysicalResourceId.of(
                     "amplify-branch-update"
@@ -133,9 +136,7 @@ class CustomAmplifyDistributionStack(Stack):
                     "appId": app_id,
                     "branchName": branch_name,
                     "enableBasicAuth": True,
-                    "basicAuthCredentials": amplify_auth_value.get_att_string(
-                        "EncodedCredentials"
-                    ),
+                    "basicAuthCredentials": amplify_auth_credentials,
                 },
                 physical_resource_id=custom.PhysicalResourceId.of(
                     "amplify-branch-update"
@@ -143,8 +144,8 @@ class CustomAmplifyDistributionStack(Stack):
             ),
         )
 
-        app_branch_update.node.add_dependency(amplify_auth_value)
-        app_branch_update.node.add_dependency(amplify_auth_value)
+#         app_branch_update.node.add_dependency(amplify_auth_value)
+#         app_branch_update.node.add_dependency(amplify_auth_value)
 
         # Format amplify branch
         formatted_amplify_branch = branch_name.replace("/", "-")
@@ -157,9 +158,7 @@ class CustomAmplifyDistributionStack(Stack):
                 origin=origins.HttpOrigin(
                     domain_name=f"{formatted_amplify_branch}.{app_id}.amplifyapp.com",
                     custom_headers={
-                        "Authorization": amplify_auth_value.get_att_string(
-                            "EncodedSuffix"
-                        )
+                        "Authorization": "Basic " + amplify_auth_credentials
                     },
                 ),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -168,7 +167,7 @@ class CustomAmplifyDistributionStack(Stack):
             web_acl_id=web_acl_arn,
         )
 
-        amplify_app_distribution.node.add_dependency(amplify_auth_value)
+#         amplify_app_distribution.node.add_dependency(amplify_auth_value)
 
         self.amplify_app_distribution = amplify_app_distribution
 
@@ -247,25 +246,25 @@ class CustomAmplifyDistributionStack(Stack):
         )
 
         # Stack Suppressions
-        NagSuppressions.add_resource_suppressions(
-            amplify_username,
-            suppressions=[
-                {
-                    "id": "AwsSolutions-SMG4",
-                    "reason": "user to retrigger rotation by recreating stack",
-                }
-            ],
-        )
+#         NagSuppressions.add_resource_suppressions(
+#             amplify_username,
+#             suppressions=[
+#                 {
+#                     "id": "AwsSolutions-SMG4",
+#                     "reason": "user to retrigger rotation by recreating stack",
+#                 }
+#             ],
+#         )
 
-        NagSuppressions.add_resource_suppressions(
-            amplify_password,
-            suppressions=[
-                {
-                    "id": "AwsSolutions-SMG4",
-                    "reason": "user to retrigger rotation by recreating stack",
-                }
-            ],
-        )
+#         NagSuppressions.add_resource_suppressions(
+#             amplify_password,
+#             suppressions=[
+#                 {
+#                     "id": "AwsSolutions-SMG4",
+#                     "reason": "user to retrigger rotation by recreating stack",
+#                 }
+#             ],
+#         )
 
         NagSuppressions.add_resource_suppressions(
             amplify_app_distribution,
@@ -304,54 +303,54 @@ class CustomAmplifyDistributionStack(Stack):
             apply_to_children=True,
         )
 
-        NagSuppressions.add_resource_suppressions(
-            password_provider,
-            suppressions=[
-                {
-                    "id": "AwsSolutions-IAM4",
-                    "reason": "CDK generated service role and policy",
-                },
-                {
-                    "id": "AwsSolutions-IAM5",
-                    "reason": "CDK generated service role and policy",
-                },
-                {
-                    "id": "AwsSolutions-L1",
-                    "reason": "CDK generated custom resource",
-                },
-            ],
-            apply_to_children=True,
-        )
+#         NagSuppressions.add_resource_suppressions(
+#             password_provider,
+#             suppressions=[
+#                 {
+#                     "id": "AwsSolutions-IAM4",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#                 {
+#                     "id": "AwsSolutions-IAM5",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#                 {
+#                     "id": "AwsSolutions-L1",
+#                     "reason": "CDK generated custom resource",
+#                 },
+#             ],
+#             apply_to_children=True,
+#         )
 
-        NagSuppressions.add_resource_suppressions(
-            amplify_credentials_retrieval_function_role,
-            suppressions=[
-                {
-                    "id": "AwsSolutions-IAM4",
-                    "reason": "CDK generated service role and policy",
-                },
-                {
-                    "id": "AwsSolutions-IAM5",
-                    "reason": "CDK generated service role and policy",
-                },
-            ],
-            apply_to_children=True,
-        )
+#         NagSuppressions.add_resource_suppressions(
+#             amplify_credentials_retrieval_function_role,
+#             suppressions=[
+#                 {
+#                     "id": "AwsSolutions-IAM4",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#                 {
+#                     "id": "AwsSolutions-IAM5",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#             ],
+#             apply_to_children=True,
+#         )
 
-        NagSuppressions.add_resource_suppressions(
-            amplify_credentials_retrieval_function_role,
-            suppressions=[
-                {
-                    "id": "AwsSolutions-IAM4",
-                    "reason": "CDK generated service role and policy",
-                },
-                {
-                    "id": "AwsSolutions-IAM5",
-                    "reason": "CDK generated service role and policy",
-                },
-            ],
-            apply_to_children=True,
-        )
+#         NagSuppressions.add_resource_suppressions(
+#             amplify_credentials_retrieval_function_role,
+#             suppressions=[
+#                 {
+#                     "id": "AwsSolutions-IAM4",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#                 {
+#                     "id": "AwsSolutions-IAM5",
+#                     "reason": "CDK generated service role and policy",
+#                 },
+#             ],
+#             apply_to_children=True,
+#         )
 
         NagSuppressions.add_resource_suppressions_by_path(
             self,
