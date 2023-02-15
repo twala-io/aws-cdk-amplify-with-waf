@@ -23,6 +23,8 @@
     "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
     "web_acl_arn":"<<ARN FOR WEB ACL>>",
     "app_id":"<<AMPLIFY APP ID>>",
-    "branch_name":"<<AMPLIFY BRANCH NAME>>"
+    "branch_name":"<<AMPLIFY BRANCH NAME>>",
+    "username":"<<AMPLIFY BASIC AUTH USERNAME>>",
+    "password":"<<AMPLIFY BASIC AUTH PASSWORD>>"
   }
 }
