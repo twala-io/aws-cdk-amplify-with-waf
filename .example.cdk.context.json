@@ -2,7 +2,6 @@
   "web_acl_arn":"<WAF ACL ARN>",
   
   "twala-<env>-ds-<project-name>": {
-    "environment_id": "twala-<env>-ds-<project-name>",
     "distribution_stack_name": "twala-<env>-ds-<project-name>",
     "branch_name":"<branch-name>",
     "username":"<Basic Auth Username>",
