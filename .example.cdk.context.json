@@ -1,0 +1,14 @@
+{
+  "web_acl_arn":"<WAF ACL ARN>",
+  
+  "twala-<env>-ds-<project-name>": {
+    "environment_id": "twala-<env>-ds-<project-name>",
+    "distribution_stack_name": "twala-<env>-ds-<project-name>",
+    "branch_name":"<branch-name>",
+    "username":"<Basic Auth Username>",
+    "password":"<Basic Auth Password>",
+    "credentials":"<username:password encoded in Base64>",
+    "cloudfront_id":"<Project Identifier format: env-project_name>",
+    "app_id":"<Amplify App ID>"
+  }
+}
