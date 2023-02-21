@@ -20,11 +20,6 @@
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
     "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
     "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName": true,
-    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
-    "web_acl_arn":"<<ARN FOR WEB ACL>>",
-    "app_id":"<<AMPLIFY APP ID>>",
-    "branch_name":"<<AMPLIFY BRANCH NAME>>",
-    "username":"<<AMPLIFY BASIC AUTH USERNAME>>",
-    "password":"<<AMPLIFY BASIC AUTH PASSWORD>>"
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"]
   }
 }
